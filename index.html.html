@@ -2316,7 +2316,7 @@ document.addEventListener('DOMContentLoaded', () => { cdNen(); qzVeTien(); qzVeT
    Dán URL ứng dụng web Apps Script (đuôi /exec) vào dòng dưới.
    Để trống = CHẾ ĐỘ THỬ: chạy giáo viên và các thiết bị nhóm ở nhiều tab trên CÙNG một trình duyệt.
    ===================================================================== */
-const URL_MAY_CHU = '';
+const URL_MAY_CHU = 'https://script.google.com/macros/s/AKfycbygmDDUpK_TLFylgQf-WYnIr7eqIp443MloyKIma1jfYaMDm9jDqtDk_HU4dczgNSvC/exec';
 const PHUT_HD1 = 3;            // thời gian Trang 1 (phút)
 const DIEM_DUNG = 10;          // điểm cho câu đúng (Trang 3)
 const THUONG_NHANH = 5;        // điểm thưởng tối đa nếu trả lời nhanh (0 = tắt)
@@ -2376,7 +2376,7 @@ const MAY_TEN = ['💻 Máy chính', '📱 Máy phụ 1', '📱 Máy phụ 2'];
    ===================================================================== */
 let nhomChon = 0, mayChon = -1;
 function veChonVai() {
-  $('cheDo').textContent = const URL_MAY_CHU = 'https://script.google.com/macros/s/AKfycbygmDDUpK_TLFylgQf-WYnIr7eqIp443MloyKIma1jfYaMDm9jDqtDk_HU4dczgNSvC/exec'; ? '🟢 Đang kết nối máy chủ Google.' : '🧪 Chế độ thử: mở giáo viên và các thiết bị nhóm ở nhiều tab trên cùng trình duyệt này.';
+  $('cheDo').textContent = URL_MAY_CHU ? '🟢 Đang kết nối máy chủ Google.' : '🧪 Chế độ thử: mở giáo viên và các thiết bị nhóm ở nhiều tab trên cùng trình duyệt này.';
   $('chonNhom').innerHTML = DOI.map((d, i) => `<button data-n="${i + 1}"><span>${d.av}</span>Nhóm ${i + 1}</button>`).join('');
   $('chonNhom').querySelectorAll('button').forEach(b => b.onclick = () => { nhomChon = +b.dataset.n; $('chonNhom').querySelectorAll('button').forEach(x => x.classList.toggle('chon', x === b)); kiemVao(); });
   $('chonMay').querySelectorAll('button').forEach(b => b.onclick = () => { mayChon = +b.dataset.m; $('chonMay').querySelectorAll('button').forEach(x => x.classList.toggle('chon', x === b)); kiemVao(); });
