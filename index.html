@@ -2323,7 +2323,7 @@ const THUONG_NHANH = 5;        // điểm thưởng tối đa nếu trả lời 
 
 /* ---------------- KẾT NỐI ---------------- */
 const MC = {
-  lech: 0,
+  lech: 0, rttMin: 1e9,
   bay() { return Date.now() + MC.lech; },
   async gui(o) {
     if (!URL_MAY_CHU) { dbXuLy(o); return true; }
@@ -2336,7 +2336,9 @@ const MC = {
   async doc(q) {
     if (!URL_MAY_CHU) return dbDoc(q);
     const t0 = Date.now(), r = await fetch(URL_MAY_CHU + '?' + new URLSearchParams(q)), j = await r.json(), t1 = Date.now();
-    if (j.bayGio) MC.lech = j.bayGio - (t0 + t1) / 2;
+    // đồng bộ đồng hồ: chỉ tin các lượt hỏi trả lời nhanh (lượt bị nghẽn mạng làm lệch giờ)
+    const rtt = t1 - t0; MC.rttMin = Math.min(MC.rttMin + 40, 1e9);
+    if (j.bayGio && rtt <= MC.rttMin) { MC.rttMin = rtt; MC.lech = j.bayGio - (t0 + t1) / 2; }
     return j;
   }
 };
@@ -2444,13 +2446,15 @@ function gvChuyen(hd, giuNguyen) {
   if (hd === 'hd3') { if (ttHienTai.pha === 'cho') { qzMan('qzMoDau'); cdBrief(); } else gvDungLaiHd3(); }
   gvPhat(); gvVeNhom();
 }
+let gvDangHoi = false;
 async function gvVong() {
+  if (gvDangHoi) return; gvDangHoi = true;
   try {
     if (gvHd === 'hd1' || !gvG.length || Date.now() - gvGLuc > 5000) { gvGLuc = Date.now(); const j = await MC.doc({ p: phong, x: 'gv' }); gvG = (j.g || []).map(h => h.map(r => r ? Object.assign(docJ(r.d), { t: r.t }) : null)); }
     if (gvHd === 'hd1') gvVeNhom();
     if (gvHd === 'hd3' && ttHienTai.pha === 'hoi') { const t = await MC.doc({ p: phong, x: 'tl', c: maCau(ttHienTai.c, ttHienTai.lan) }); gvTl = t.tl || []; qzVeNhom(); }
     else if (gvHd === 'hd3') qzVeNhom();
-  } catch (e) { }
+  } catch (e) { } finally { gvDangHoi = false; }
 }
 const nhomVao = i => (gvG[i] || []).some(conSong);
 function gvVeNhom() {
@@ -2529,13 +2533,17 @@ function qzChayGio() {
 }
 async function qzHienDapAn() {
   if (qzDaHien) return; qzDaHien = true; clearInterval(qzHen);
-  try { const t = await MC.doc({ p: phong, x: 'tl', c: maCau(qzI, ttHienTai.lan) }); gvTl = t.tl || gvTl; } catch (e) { }
+  // thu đáp án 2 lần cách nhau ~1,2 giây để kịp nhận các đáp án đang trên đường gửi (Apps Script có thể chậm vài giây)
+  for (let lan = 0; lan < 2; lan++) {
+    try { const t = await MC.doc({ p: phong, x: 'tl', c: maCau(qzI, ttHienTai.lan) }); (t.tl || []).forEach((x, n) => { if (x) gvTl[n] = x; }); } catch (e) { }
+    if (lan === 0) await new Promise(r => setTimeout(r, 1200));
+  }
   const c = CAU_HOI[qzI], dung = document.querySelector(`.qz-o[data-k="${c.dung}"]`), v = $('cdVirus');
   // chấm điểm tự động
   const kq = []; let soDung = 0;
   for (let n = 0; n < 6; n++) {
     const a = gvTl[n]; let cong = 0;
-    if (a && a.chon === c.dung && a.t <= ttHienTai.han + 1500) { const conLai = Math.max(0, ttHienTai.han - a.t) / (GIAY_MOI_CAU * 1000); cong = DIEM_DUNG + Math.round(THUONG_NHANH * conLai); soDung++; }
+    if (a && a.chon === c.dung && a.t <= ttHienTai.han + 4000) { const conLai = Math.max(0, ttHienTai.han - a.t) / (GIAY_MOI_CAU * 1000); cong = DIEM_DUNG + Math.round(THUONG_NHANH * conLai); soDung++; }
     qzDiem[n] += cong; kq.push({ chon: a ? a.chon : '', cong });
   }
   ttHienTai.pha = 'dapan'; ttHienTai.kq = kq; ttHienTai.diem = qzDiem.slice(); gvPhat();
@@ -2602,13 +2610,15 @@ async function nhVao() {
   clearInterval(nhVongHen); nhVongHen = setInterval(nhVong, laChinh ? 1200 : 1500); nhVong();
   setInterval(() => guiNh(true), 8000);   // tín hiệu "đang trực tuyến"
 }
+let nhDangHoi = false;
 async function nhVong() {
+  if (nhDangHoi) return; nhDangHoi = true;   // không chồng nhiều lượt hỏi khi mạng chậm
   try {
     const j = await MC.doc({ p: phong, x: 'nh', n: nhom });
     if (!j.tt) { $('choLoi').textContent = 'Chưa thấy máy giáo viên trong phòng này. Kiểm tra lại mã phòng nhé.'; hien('nhCho'); return; }
     nhTT = j.tt; nhG = (j.g || []).map(r => r ? Object.assign(docJ(r.d), { t: r.t }) : null);
     nhVe();
-  } catch (e) { }
+  } catch (e) { } finally { nhDangHoi = false; }
 }
 function nhVe() {
   const tt = nhTT;
@@ -2703,7 +2713,7 @@ function nhGio(han) {
 
 function nhLuuChon() { try { localStorage.setItem('kp-chon-' + phong + '-' + nhom, JSON.stringify(nhDaChon)); } catch (e) { } }
 async function nhChon(k) {
-  const tt = nhTT, mc = maCau(tt && tt.c, tt && tt.lan); if (!laChinh || !tt || tt.pha !== 'hoi' || nhDaChon[mc] || MC.bay() > tt.han) return;
+  const tt = nhTT, mc = maCau(tt && tt.c, tt && tt.lan); if (!laChinh || !tt || tt.pha !== 'hoi' || nhDaChon[mc] || MC.bay() > tt.han + 500) return;
   nhDaChon[mc] = k; nhLuuChon();
   document.querySelectorAll('#tlNoi .tl-nut button').forEach(b => { b.disabled = true; b.classList.toggle('chon', b.dataset.k === k); });
   $('tlKhoa').innerHTML = '📡 Đang gửi đáp án <b>' + k + '</b>…'; qzAm(880, .12);
